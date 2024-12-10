@@ -80,11 +80,11 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 
 .PHONY: build
 build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/forge-provider-gcp/main.go
+	go build -o bin/manager cmd/forge-provider-aws/main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/forge-provider-gcp/main.go
+	go run ./cmd/forge-provider-aws/main.go
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
@@ -108,10 +108,10 @@ PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 docker-buildx: ## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
-	- $(CONTAINER_TOOL) buildx create --name forge-provider-gcp-builder
-	$(CONTAINER_TOOL) buildx use forge-provider-gcp-builder
+	- $(CONTAINER_TOOL) buildx create --name forge-provider-aws-builder
+	$(CONTAINER_TOOL) buildx use forge-provider-aws-builder
 	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
-	- $(CONTAINER_TOOL) buildx rm forge-provider-gcp-builder
+	- $(CONTAINER_TOOL) buildx rm forge-provider-aws-builder
 	rm Dockerfile.cross
 
 .PHONY: build-installer
