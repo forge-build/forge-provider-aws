@@ -1,0 +1,27 @@
+# permissions for end users to edit awsbuilds.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: forge-provider-aws
+    app.kubernetes.io/managed-by: kustomize
+  name: awsbuild-editor-role
+rules:
+- apiGroups:
+  - infrastructure.forge.build
+  resources:
+  - awsbuilds
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - infrastructure.forge.build
+  resources:
+  - awsbuilds/status
+  verbs:
+  - get

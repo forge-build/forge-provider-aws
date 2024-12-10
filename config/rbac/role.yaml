@@ -1,0 +1,41 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - forge.build
+  resources:
+  - builds
+  verbs:
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - infrastructure.forge.build
+  resources:
+  - awsbuilds
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - infrastructure.forge.build
+  resources:
+  - awsbuilds/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - infrastructure.forge.build
+  resources:
+  - awsbuilds/status
+  verbs:
+  - get
+  - patch
+  - update

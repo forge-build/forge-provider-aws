@@ -1,0 +1,58 @@
+# Copyright 2024 The Forge Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+apiVersion: forge.build/v1alpha1
+kind: Build
+metadata:
+  name: ubuntu-build
+spec:
+  connector:
+    type: ssh
+  infrastructureRef:
+    kind: AWSBuild
+    name: ubuntu-build
+    apiVersion: infrastructure.forge.build/v1alpha1
+  provisioners:
+    - type: built-in/shell
+      allowFail: true
+      run: |
+        echo "Hello from shell executor" > ~/hello-2.txt
+
+---
+
+apiVersion: infrastructure.forge.build/v1alpha1
+kind: AWSBuild
+metadata:
+  name: my-aws-build
+  namespace: default
+  labels:
+    forge.build/build-name: example-build
+spec:
+  username: builder
+  generateSSHKey: true
+  region: us-east-1
+  instanceType: t3.medium
+  ami: ami-1234567890abcdef0
+  network:
+    vpcID: vpc-0abcdef1234567890
+    subnetID: subnet-0123456789abcdef0
+    securityGroupIDs:
+      - sg-12345abcdef
+      - sg-67890ghijkl
+    assignPublicIP: true
+  publicIP: true
+  credentialsRef:
+    name: aws-creds
+    namespace: default
