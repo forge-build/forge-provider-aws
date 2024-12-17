@@ -24,21 +24,38 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	infrav1 "github.com/forge-build/forge-provider-aws/pkg/api/v1alpha1"
+	awsforge "github.com/forge-build/forge-provider-aws/pkg/aws"
+	buildv1 "github.com/forge-build/forge/api/v1alpha1"
+	"github.com/forge-build/forge/util"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	infrav1 "github.com/forge-build/forge-provider-aws/pkg/api/v1alpha1"
-	buildv1 "github.com/forge-build/forge/api/v1alpha1"
-	"github.com/forge-build/forge/util"
 )
+
+// AWSBuildScope defines the basic context for an actuator to operate upon for AWS.
+type AWSBuildScope struct {
+	client      client.Client
+	patchHelper *patch.Helper
+
+	Build     *buildv1.Build
+	AWSBuild  *infrav1.AWSBuild
+	AWSClient *awsforge.AWSClient
+	sshKEy    SSHKey
+}
+
+type SSHKey struct {
+	MetadataSSHKeys string
+	PrivateKey      string
+	PublicKey       string
+}
 
 // AWSBuildScopeParams defines the input parameters to create an AWS BuildScope.
 type AWSBuildScopeParams struct {
-	Client      client.Client
-	Build       *buildv1.Build
-	AWSBuild    *infrav1.AWSBuild
-	AWSServices *AWSServices
+	Client    client.Client
+	Build     *buildv1.Build
+	AWSBuild  *infrav1.AWSBuild
+	AWSClient *awsforge.AWSClient
 }
 
 // NewAWSBuildScope creates a new AWSBuildScope from the supplied parameters.
@@ -50,13 +67,13 @@ func NewAWSBuildScope(ctx context.Context, params AWSBuildScopeParams) (*AWSBuil
 		return nil, errors.New("failed to generate new scope from nil AWSBuild")
 	}
 
-	if params.AWSServices == nil {
-		awsSvc, err := NewAWSServices(ctx, params.AWSBuild.Spec.Region, params.AWSBuild.Spec.CredentialsRef, params.Client)
+	if params.AWSClient == nil {
+		awsSvc, err := awsforge.NewAWSClient(ctx, params.AWSBuild.Spec.Region, params.AWSBuild.Spec.CredentialsRef, params.Client)
 		if err != nil {
 			return nil, errors.Errorf("failed to create aws client: %v", err)
 		}
 
-		params.AWSServices = &awsSvc
+		params.AWSClient = &awsSvc
 	}
 
 	helper, err := patch.NewHelper(params.AWSBuild, params.Client)
@@ -68,26 +85,13 @@ func NewAWSBuildScope(ctx context.Context, params AWSBuildScopeParams) (*AWSBuil
 		client:      params.Client,
 		Build:       params.Build,
 		AWSBuild:    params.AWSBuild,
-		AWSServices: params.AWSServices,
+		AWSClient:   params.AWSClient,
 		patchHelper: helper,
 	}, nil
 }
 
-// AWSBuildScope defines the basic context for an actuator to operate upon for AWS.
-type AWSBuildScope struct {
-	client      client.Client
-	patchHelper *patch.Helper
-
-	Build    *buildv1.Build
-	AWSBuild *infrav1.AWSBuild
-	*AWSServices
-	sshKEy SSHKey
-}
-
-type SSHKey struct {
-	MetadataSSHKeys string
-	PrivateKey      string
-	PublicKey       string
+func (s *AWSBuildScope) Cloud() *awsforge.AWSClient {
+	return s.AWSClient
 }
 
 // GetSSHKey returns the ssh key.
@@ -245,10 +249,6 @@ func (s *AWSBuildScope) SecurityGroupName() *string {
 		sgName = aws.String(s.AWSBuild.Spec.Network.Name)
 	}
 	return sgName
-}
-
-func (s *AWSBuildScope) Cloud() *ec2.EC2 {
-	return s.EC2
 }
 
 func (s *AWSBuildScope) IsReady() bool {

@@ -19,7 +19,8 @@ package cloud
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	awsforge "github.com/forge-build/forge-provider-aws/pkg/aws"
+
 	infrav1 "github.com/forge-build/forge-provider-aws/pkg/api/v1alpha1"
 )
 
@@ -30,7 +31,7 @@ type Reconciler interface {
 
 // Client is an interface which can get cloud client.
 type Client interface {
-	Cloud() *ec2.EC2
+	Cloud() *awsforge.AWSClient
 }
 
 // BuildGetter is an interface which can get build information.
