@@ -76,13 +76,9 @@ type AWSBuildSpec struct {
 	// InstanceType is the EC2 instance type (e.g., t2.micro, m5.large).
 	InstanceType string `json:"instanceType"`
 
-	// Subnet specifies the subnet ID for the instance.
+	// VPCName encapsultes all the things related to AWS VPC
 	// +optional
-	Subnet *string `json:"subnet,omitempty"`
-
-	// SecurityGroups is a list of security group IDs to associate with the instance.
-	// +optional
-	SecurityGroups []string `json:"securityGroups,omitempty"`
+	Network NetworkSpec `json:"network"`
 
 	// AMI is the Amazon Machine Image ID to use for the instance.
 	// +optional
@@ -104,6 +100,10 @@ type AWSBuildSpec struct {
 	// +optional
 	IAMRole *string `json:"iamRole,omitempty"`
 
+	// InstanceID is the unique identifier as specified by the cloud provider.
+	// +optional
+	InstanceID *string `json:"InstanceID,omitempty"`
+
 	// CredentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
 	// supplied then the credentials of the controller will be used.
 	// +optional
@@ -112,13 +112,24 @@ type AWSBuildSpec struct {
 
 // AWSBuildStatus defines the observed state of AWSBuild.
 type AWSBuildStatus struct {
-	// Ready indicates that the AWSBuild is ready.
+	// Ready indicates that the GCPBuild is ready.
 	// +optional
+	// +kubebuilder:default=false
 	Ready bool `json:"ready"`
 
-	// InstanceID is the ID of the EC2 instance.
+	// MachineReady indicates that the associated machine is ready to accept connection.
 	// +optional
-	InstanceID *string `json:"instanceID,omitempty"`
+	// +kubebuilder:default=false
+	MachineReady bool `json:"machineReady"`
+
+	// CleanUpReady indicates that the Infrastructure is cleaned up or not.
+	// +optional
+	// +kubebuilder:default=false
+	CleanedUP bool `json:"cleanedUP,omitempty"`
+
+	// InstanceStatus is the status of the GCP instance for this machine.
+	// +optional
+	InstanceStatus *InstanceStatus `json:"instanceState,omitempty"`
 
 	// ArtifactRef is the reference to the built artifact.
 	// +optional
