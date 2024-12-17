@@ -16,13 +16,13 @@
 apiVersion: forge.build/v1alpha1
 kind: Build
 metadata:
-  name: ubuntu-build
+  name: aws-ubuntu-build
 spec:
   connector:
     type: ssh
   infrastructureRef:
     kind: AWSBuild
-    name: ubuntu-build
+    name: my-aws-build
     apiVersion: infrastructure.forge.build/v1alpha1
   provisioners:
     - type: built-in/shell
@@ -37,21 +37,12 @@ kind: AWSBuild
 metadata:
   name: my-aws-build
   namespace: default
-  labels:
-    forge.build/build-name: example-build
 spec:
   username: builder
   generateSSHKey: true
-  region: us-east-1
-  instanceType: t3.medium
-  ami: ami-1234567890abcdef0
-  network:
-    vpcID: vpc-0abcdef1234567890
-    subnetID: subnet-0123456789abcdef0
-    securityGroupIDs:
-      - sg-12345abcdef
-      - sg-67890ghijkl
-    assignPublicIP: true
+  region: eu-central-1
+  instanceType: t2.micro
+  ami: ami-0a628e1e89aaedf80
   publicIP: true
   credentialsRef:
     name: aws-creds

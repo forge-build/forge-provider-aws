@@ -55,6 +55,10 @@ spec:
           spec:
             description: AWSBuildSpec defines the desired state of AWSBuild.
             properties:
+              InstanceID:
+                description: InstanceID is the unique identifier as specified by the
+                  cloud provider.
+                type: string
               additionalVolumes:
                 description: AdditionalVolumes defines additional volumes to attach
                   to the instance.
@@ -112,6 +116,29 @@ spec:
                 description: InstanceType is the EC2 instance type (e.g., t2.micro,
                   m5.large).
                 type: string
+              network:
+                description: VPCName encapsultes all the things related to AWS VPC
+                properties:
+                  assignPublicIP:
+                    description: AssignPublicIP specifies whether to assign a public
+                      IP to the instance.
+                    type: boolean
+                  name:
+                    description: Name specifies the Name of the Virtual Private Cloud
+                      (VPC) for the instance.
+                    type: string
+                  securityGroup:
+                    description: SecurityGroupID list the security group to associate
+                      with the instance.
+                    type: string
+                  subnetID:
+                    description: SubnetID specifies the ID of the subnet for the instance.
+                    type: string
+                  vpcID:
+                    description: VPCID specifies the ID of the Virtual Private Cloud
+                      (VPC) for the instance.
+                    type: string
+                type: object
               publicIP:
                 description: PublicIP specifies whether the instance should have a
                   public IP.
@@ -141,12 +168,6 @@ spec:
                       io1).
                     type: string
                 type: object
-              securityGroups:
-                description: SecurityGroups is a list of security group IDs to associate
-                  with the instance.
-                items:
-                  type: string
-                type: array
               sshCredentialsRef:
                 description: |-
                   CredentialsRef is a reference to the secret which contains the credentials to connect to the infrastructure machine.
@@ -184,6 +205,11 @@ spec:
               artifactRef:
                 description: ArtifactRef is the reference to the built artifact.
                 type: string
+              cleanedUP:
+                default: false
+                description: CleanUpReady indicates that the Infrastructure is cleaned
+                  up or not.
+                type: boolean
               conditions:
                 description: Conditions lists the current conditions of the AWSBuild.
                 items:
@@ -236,11 +262,18 @@ spec:
               failureReason:
                 description: FailureReason describes why the build failed, if applicable.
                 type: string
-              instanceID:
-                description: InstanceID is the ID of the EC2 instance.
+              instanceState:
+                description: InstanceStatus is the status of the GCP instance for
+                  this machine.
                 type: string
+              machineReady:
+                default: false
+                description: MachineReady indicates that the associated machine is
+                  ready to accept connection.
+                type: boolean
               ready:
-                description: Ready indicates that the AWSBuild is ready.
+                default: false
+                description: Ready indicates that the GCPBuild is ready.
                 type: boolean
             type: object
         type: object
