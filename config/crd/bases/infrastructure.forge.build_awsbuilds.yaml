@@ -186,9 +186,6 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
-              subnet:
-                description: Subnet specifies the subnet ID for the instance.
-                type: string
               username:
                 default: root
                 description: Username is the username to connect to the infrastructure

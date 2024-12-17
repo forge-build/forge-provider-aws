@@ -14,23 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package subnet
+package networks
 
 import (
+	"context"
+
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/forge-build/forge-provider-aws/pkg/cloud"
 )
 
-type subnetsInterface interface {
-	CreateSubnet(input *ec2.CreateSubnetInput) (*ec2.CreateSubnetOutput, error)
-	DeleteSubnet(input *ec2.DeleteSubnetInput) (*ec2.DeleteSubnetOutput, error)
-	DescribeSubnets(input *ec2.DescribeSubnetsInput) (*ec2.DescribeSubnetsOutput, error)
-}
-
 type vpcsInterface interface {
-	CreateVpc(input *ec2.CreateVpcInput) (*ec2.CreateVpcOutput, error)
-	DeleteVpc(input *ec2.DeleteVpcInput) (*ec2.DeleteVpcOutput, error)
-	DescribeVpcs(input *ec2.DescribeVpcsInput) (*ec2.DescribeVpcsOutput, error)
+	FindVPCByIDOrName(vpcID, vpcName *string) (*ec2.Vpc, error)
+	IsManagedVPC(vpcID *string) (bool, error)
+	DeleteVPC(vpcID *string) error
+	CreateVPC(input *ec2.CreateVpcInput) (*ec2.Vpc, error)
+	DetachAndDeleteInternetGateway(vpcID *string) error
+	CreateOrGetInternetGateway(ctx context.Context, vpcID string) (*ec2.InternetGateway, error)
 }
 
 type Scope interface {
@@ -43,9 +42,8 @@ type Scope interface {
 
 // Service implements networks reconciler.
 type Service struct {
-	scope        Scope
-	subnetClient subnetsInterface
-	vpcClient    vpcsInterface
+	scope  Scope
+	Client vpcsInterface
 }
 
 var _ cloud.Reconciler = &Service{}
@@ -53,8 +51,7 @@ var _ cloud.Reconciler = &Service{}
 // New returns Service from given scope.
 func New(scope Scope) *Service {
 	return &Service{
-		scope:        scope,
-		subnetClient: scope.Cloud(),
-		vpcClient:    scope.Cloud(),
+		scope:  scope,
+		Client: scope.Cloud(),
 	}
 }

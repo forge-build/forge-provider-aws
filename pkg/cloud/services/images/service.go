@@ -14,33 +14,38 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package securitygroup
+package images
 
 import (
+	"context"
+
 	"github.com/aws/aws-sdk-go/service/ec2"
+
 	"github.com/forge-build/forge-provider-aws/pkg/cloud"
 )
 
-type securityGroupInterface interface {
-	DeleteSecurityGroup(input *ec2.DeleteSecurityGroupInput) (*ec2.DeleteSecurityGroupOutput, error)
-	CreateSecurityGroup(input *ec2.CreateSecurityGroupInput) (*ec2.CreateSecurityGroupOutput, error)
-	AuthorizeSecurityGroupIngress(input *ec2.AuthorizeSecurityGroupIngressInput) (*ec2.AuthorizeSecurityGroupIngressOutput, error)
-	DescribeSecurityGroups(input *ec2.DescribeSecurityGroupsInput) (*ec2.DescribeSecurityGroupsOutput, error)
+// instancesInterface defines the EC2 operations needed for instances.
+type instancesInterface interface {
+	CreateAMI(ctx context.Context, instanceID, imageName string) error
+	EnsureAMIDoesNotExist(ctx context.Context, imageName, creationDate string) error
+	ListAMIs(ctx context.Context, imageName string) ([]*ec2.Image, error)
+	CheckAMIStatus(ctx context.Context, imageName string) (string, string, error)
 }
 
+// Scope defines the methods needed from the calling context (e.g., BuildScope).
+// This should return parameters needed to create, identify, and configure the instance.
 type Scope interface {
 	cloud.Build
-	VPCSpec() *ec2.CreateVpcInput
-	VPCName() *string
-	SecurityGroupName() *string
-	SecurityGroupID() *string
-	SetSecurityGroupID(id *string)
+	IsProvisionerReady() bool
+	IsReady() bool
+	SetArtifactRef(reference string)
+	CreationDate() string
 }
 
 // Service implements networks reconciler.
 type Service struct {
-	scope    Scope
-	sgClient securityGroupInterface
+	scope  Scope
+	Client instancesInterface
 }
 
 var _ cloud.Reconciler = &Service{}
@@ -48,7 +53,7 @@ var _ cloud.Reconciler = &Service{}
 // New returns Service from given scope.
 func New(scope Scope) *Service {
 	return &Service{
-		scope:    scope,
-		sgClient: scope.Cloud(),
+		scope:  scope,
+		Client: scope.Cloud(),
 	}
 }

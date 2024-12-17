@@ -20,16 +20,16 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	awsforge "github.com/forge-build/forge-provider-aws/pkg/aws"
 	"github.com/forge-build/forge-provider-aws/pkg/cloud"
 )
 
 // instancesInterface defines the EC2 operations needed for instances.
 type instancesInterface interface {
-	DescribeInstances(input *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error)
-	RunInstances(input *ec2.RunInstancesInput) (*ec2.Reservation, error)
-	TerminateInstances(input *ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error)
-	WaitUntilInstanceTerminated(input *ec2.DescribeInstancesInput) error
-	CreateTags(input *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error)
+	IsManagedInstance(instanceID *string) (bool, error)
+	FindInstanceByID(instanceID *string) (*ec2.Instance, error)
+	CreateInstance(input awsforge.CreateInstanceParams) (*ec2.Instance, error)
+	TerminateInstance(instanceID *string) error
 }
 
 // Scope defines the methods needed from the calling context (e.g., BuildScope).
@@ -43,8 +43,8 @@ type Scope interface {
 
 // Service implements networks reconciler.
 type Service struct {
-	scope     Scope
-	ec2Client instancesInterface
+	scope  Scope
+	Client instancesInterface
 }
 
 var _ cloud.Reconciler = &Service{}
@@ -52,7 +52,7 @@ var _ cloud.Reconciler = &Service{}
 // New returns Service from given scope.
 func New(scope Scope) *Service {
 	return &Service{
-		scope:     scope,
-		ec2Client: scope.Cloud(),
+		scope:  scope,
+		Client: scope.Cloud(),
 	}
 }

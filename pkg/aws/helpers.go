@@ -14,13 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package subnet
+package aws
 
 import (
 	"bytes"
 	"fmt"
 	"net"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pkg/errors"
 )
 
@@ -98,4 +100,13 @@ func isCIDRInUse(candidateCIDR string, usedCIDRs []string) (bool, error) {
 // bytesCompare compares two byte slices lexicographically.
 func bytesCompare(a, b net.IP) int {
 	return bytes.Compare(a, b)
+}
+
+func GetNameFromTags(tags []*ec2.Tag) string {
+	for _, tag := range tags {
+		if aws.StringValue(tag.Key) == "Name" {
+			return *tag.Value
+		}
+	}
+	return ""
 }
