@@ -20,6 +20,7 @@ import (
 	"context"
 
 	awsforge "github.com/forge-build/forge-provider-aws/pkg/aws"
+	"github.com/go-logr/logr"
 
 	infrav1 "github.com/forge-build/forge-provider-aws/pkg/api/v1alpha1"
 )
@@ -32,6 +33,7 @@ type Reconciler interface {
 // Client is an interface which can get cloud client.
 type Client interface {
 	Cloud() *awsforge.AWSClient
+	Log(service string) logr.Logger
 }
 
 // BuildGetter is an interface which can get build information.

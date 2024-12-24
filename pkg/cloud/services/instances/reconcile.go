@@ -27,12 +27,10 @@ import (
 	awsforge "github.com/forge-build/forge-provider-aws/pkg/aws"
 	awserrors "github.com/forge-build/forge-provider-aws/pkg/cloud/services/errors"
 	"github.com/pkg/errors"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func (s *Service) Reconcile(ctx context.Context) error {
-	log := log.FromContext(ctx)
-	log.Info("Reconciling EC2 instance")
+	s.Log.V(1).Info("Reconciling EC2 instance")
 
 	// createOrGetInstance will handle creation and retrieval logic
 	instance, err := s.createOrGetInstance(ctx)
@@ -56,17 +54,16 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	s.scope.SetInstanceID(instance.InstanceId)
 	s.scope.SetInstanceStatus(infrav1.InstanceStatus(strings.ToUpper(*instance.State.Name))) // e.g., "running", "pending", etc.
 
-	log.Info("EC2 instance is ready", "InstanceID", *instance.InstanceId, "PublicIP", publicIP)
+	s.Log.Info("EC2 instance is ready", "InstanceID", *instance.InstanceId, "PublicIP", publicIP)
 	return nil
 }
 
 func (s *Service) Delete(ctx context.Context) error {
-	log := log.FromContext(ctx)
-	log.Info("Deleting EC2 instance")
+	s.Log.V(1).Info("Deleting EC2 instance")
 
 	instanceID := s.scope.GetInstanceID()
 	if instanceID == nil {
-		log.Info("No instance ID to delete, skipping")
+		s.Log.Info("No instance ID to delete, skipping")
 		return nil
 	}
 
@@ -77,7 +74,7 @@ func (s *Service) Delete(ctx context.Context) error {
 	}
 
 	if !isManaged {
-		log.Info("Instance is not managed by forge, skipping deletion", "InstanceID", *instanceID)
+		s.Log.Info("Instance is not managed by forge, skipping deletion", "InstanceID", *instanceID)
 		return nil
 	}
 
@@ -85,7 +82,7 @@ func (s *Service) Delete(ctx context.Context) error {
 	instance, err := s.Client.FindInstanceByID(instanceID)
 	if err != nil {
 		if awserrors.IsNotFound(err) {
-			log.Info("Instance already deleted", "InstanceID", *instanceID)
+			s.Log.Info("Instance already deleted", "InstanceID", *instanceID)
 			s.scope.SetInstanceStatus(infrav1.InstanceStatusTerminated)
 			return nil
 		}
@@ -94,7 +91,7 @@ func (s *Service) Delete(ctx context.Context) error {
 
 	// If instance is already terminating or terminated, update status
 	state := aws.StringValue(instance.State.Name)
-	log.Info(fmt.Sprintf("Instance is %s", state), "InstanceID", *instanceID)
+	s.Log.V(1).Info(fmt.Sprintf("Instance is %s", state), "InstanceID", *instanceID)
 	s.scope.SetInstanceStatus(infrav1.InstanceStatus(strings.ToUpper(state)))
 
 	if state == ec2.InstanceStateNameTerminated || state == ec2.InstanceStateNameShuttingDown {
@@ -102,25 +99,25 @@ func (s *Service) Delete(ctx context.Context) error {
 	}
 
 	// Initiate termination if not already in progress
-	log.Info("Terminating EC2 instance", "InstanceID", *instanceID)
+	s.Log.V(1).Info("Terminating EC2 instance", "InstanceID", *instanceID)
 	err = s.Client.TerminateInstance(instanceID)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// Set status to Terminating
 	s.scope.SetInstanceStatus("Terminating")
-	log.Info("Termination initiated for EC2 instance", "InstanceID", *instanceID)
+	s.Log.Info("Termination initiated for EC2 instance", "InstanceID", *instanceID)
 
 	return nil
 }
 
-func (s *Service) createOrGetInstance(ctx context.Context) (*ec2.Instance, error) {
-	log := log.FromContext(ctx)
+func (s *Service) createOrGetInstance(_ context.Context) (*ec2.Instance, error) {
 	instanceID := s.scope.GetInstanceID()
 	// Check if we already have an InstanceID
 	if instanceID != nil {
 		// Describe the instance
+		s.Log.V(1).Info("Getting Instance by ID", "instanceID", *instanceID)
 		instance, err := s.Client.FindInstanceByID(instanceID)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to find instance by ID")
@@ -139,10 +136,11 @@ func (s *Service) createOrGetInstance(ctx context.Context) (*ec2.Instance, error
 		Userdata:        *s.scope.UserData(),
 		PublicIP:        *s.scope.PublicIP(),
 	}
+
+	s.Log.V(1).Info("Creating an EC2 Instance...")
 	instance, err := s.Client.CreateInstance(params)
 	if err != nil {
 		return nil, err
 	}
-	log.Info("EC2 instance created", "InstanceID", *instance.InstanceId)
 	return instance, nil
 }

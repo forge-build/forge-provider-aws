@@ -19,7 +19,10 @@ package securitygroup
 import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/forge-build/forge-provider-aws/pkg/cloud"
+	"github.com/go-logr/logr"
 )
+
+const ServiceName = "firewall-reconciler"
 
 type securityGroupInterface interface {
 	CreateSecurityGroup(vpcID, sgName *string) (*ec2.CreateSecurityGroupOutput, error)
@@ -41,6 +44,7 @@ type Scope interface {
 type Service struct {
 	scope  Scope
 	Client securityGroupInterface
+	Log    logr.Logger
 }
 
 var _ cloud.Reconciler = &Service{}
@@ -50,5 +54,6 @@ func New(scope Scope) *Service {
 	return &Service{
 		scope:  scope,
 		Client: scope.Cloud(),
+		Log:    scope.Log(ServiceName),
 	}
 }

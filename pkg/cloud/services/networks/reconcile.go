@@ -24,13 +24,11 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pkg/errors"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // Reconcile ensures the AWS VPC and related resources are present.
 func (s *Service) Reconcile(ctx context.Context) error {
-	log := log.FromContext(ctx)
-	log.Info("Reconciling AWS VPC resources")
+	s.Log.V(1).Info("Reconciling AWS VPC resources")
 
 	// Ensure VPC exists
 	vpc, err := s.createOrGetVPC(ctx)
@@ -40,24 +38,23 @@ func (s *Service) Reconcile(ctx context.Context) error {
 
 	// Ensure Internet Gateway exists
 	vpcID := *vpc.VpcId
-	log.Info("Reconciling Internet Gateway for VPC", "VPCID", vpcID)
+	s.Log.V(1).Info("Reconciling Internet Gateway for VPC", "VPCID", vpcID)
 	igw, err := s.Client.CreateOrGetInternetGateway(ctx, vpcID)
 	if err != nil {
 		return errors.Wrap(err, "failed to reconcile Internet Gateway")
 	}
-	log.Info("Internet Gateway is ready", "IGWID", aws.StringValue(igw.InternetGatewayId))
+	s.Log.Info("Internet Gateway is ready", "IGWID", aws.StringValue(igw.InternetGatewayId))
 
 	return nil
 }
 
 // Delete ensures the AWS VPC and related resources are deleted.
 func (s *Service) Delete(ctx context.Context) error {
-	log := log.FromContext(ctx)
-	log.Info("Deleting AWS VPC resources")
+	s.Log.V(1).Info("Deleting AWS VPC resources")
 
 	vpcID := s.scope.VPCID()
 	if vpcID == nil {
-		log.Info("No VPC to delete")
+		s.Log.Info("No VPC to delete")
 		return nil
 	}
 
@@ -68,7 +65,7 @@ func (s *Service) Delete(ctx context.Context) error {
 	}
 
 	if !isManagedVPC {
-		log.Info("VPC is not managed by the system. Skipping deletion.", "VPCID", *vpcID)
+		s.Log.Info("VPC is not managed by the system. Skipping deletion.", "VPCID", *vpcID)
 		return nil
 	}
 
@@ -79,13 +76,13 @@ func (s *Service) Delete(ctx context.Context) error {
 	}
 
 	// Delete the VPC
-	log.Info("Deleting VPC", "VPCID", *vpcID)
+	s.Log.V(1).Info("Deleting VPC", "VPCID", *vpcID)
 	err = s.Client.DeleteVPC(vpcID)
 	if err != nil {
 		return err
 	}
 
-	log.Info("Successfully deleted VPC", "VPCID", *vpcID)
+	s.Log.Info("Successfully deleted VPC", "VPCID", *vpcID)
 	return nil
 }
 

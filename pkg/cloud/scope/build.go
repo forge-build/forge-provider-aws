@@ -26,8 +26,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	infrav1 "github.com/forge-build/forge-provider-aws/pkg/api/v1alpha1"
 	awsforge "github.com/forge-build/forge-provider-aws/pkg/aws"
-	buildv1 "github.com/forge-build/forge/api/v1alpha1"
-	"github.com/forge-build/forge/util"
+	buildv1 "github.com/forge-build/forge/pkg/api/v1alpha1"
+	"github.com/forge-build/forge/pkg/util"
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,11 +38,11 @@ import (
 type AWSBuildScope struct {
 	client      client.Client
 	patchHelper *patch.Helper
-
-	Build     *buildv1.Build
-	AWSBuild  *infrav1.AWSBuild
-	AWSClient *awsforge.AWSClient
-	sshKEy    SSHKey
+	Logger      *logr.Logger
+	Build       *buildv1.Build
+	AWSBuild    *infrav1.AWSBuild
+	AWSClient   *awsforge.AWSClient
+	sshKEy      SSHKey
 }
 
 type SSHKey struct {
@@ -56,6 +57,7 @@ type AWSBuildScopeParams struct {
 	Build     *buildv1.Build
 	AWSBuild  *infrav1.AWSBuild
 	AWSClient *awsforge.AWSClient
+	Log       *logr.Logger
 }
 
 // NewAWSBuildScope creates a new AWSBuildScope from the supplied parameters.
@@ -87,11 +89,16 @@ func NewAWSBuildScope(ctx context.Context, params AWSBuildScopeParams) (*AWSBuil
 		AWSBuild:    params.AWSBuild,
 		AWSClient:   params.AWSClient,
 		patchHelper: helper,
+		Logger:      params.Log,
 	}, nil
 }
 
 func (s *AWSBuildScope) Cloud() *awsforge.AWSClient {
 	return s.AWSClient
+}
+
+func (s *AWSBuildScope) Log(serviceName string) logr.Logger {
+	return s.Logger.WithName(serviceName)
 }
 
 // GetSSHKey returns the ssh key.

@@ -22,7 +22,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	awsforge "github.com/forge-build/forge-provider-aws/pkg/aws"
 	"github.com/forge-build/forge-provider-aws/pkg/cloud"
+	"github.com/go-logr/logr"
 )
+
+const ServiceName = "instance-reconciler"
 
 // instancesInterface defines the EC2 operations needed for instances.
 type instancesInterface interface {
@@ -45,6 +48,7 @@ type Scope interface {
 type Service struct {
 	scope  Scope
 	Client instancesInterface
+	Log    logr.Logger
 }
 
 var _ cloud.Reconciler = &Service{}
@@ -54,5 +58,6 @@ func New(scope Scope) *Service {
 	return &Service{
 		scope:  scope,
 		Client: scope.Cloud(),
+		Log:    scope.Log(ServiceName),
 	}
 }

@@ -23,7 +23,7 @@ spec:
       name: Build
       type: string
     - description: Instance ID
-      jsonPath: .status.instanceID
+      jsonPath: .spec.instanceID
       name: Instance ID
       type: string
     - description: Build is ready
@@ -55,10 +55,6 @@ spec:
           spec:
             description: AWSBuildSpec defines the desired state of AWSBuild.
             properties:
-              InstanceID:
-                description: InstanceID is the unique identifier as specified by the
-                  cloud provider.
-                type: string
               additionalVolumes:
                 description: AdditionalVolumes defines additional volumes to attach
                   to the instance.
@@ -111,6 +107,10 @@ spec:
               iamRole:
                 description: IAMRole specifies the IAM role to associate with the
                   instance.
+                type: string
+              instanceID:
+                description: InstanceID is the unique identifier as specified by the
+                  cloud provider.
                 type: string
               instanceType:
                 description: InstanceType is the EC2 instance type (e.g., t2.micro,

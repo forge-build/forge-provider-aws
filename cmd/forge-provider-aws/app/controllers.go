@@ -43,5 +43,5 @@ func createAllControllers(ctrlCtx *options.ControllerContext) error {
 }
 
 func createAWSBuildController(ctrlCtx *options.ControllerContext) error {
-	return awsbuildcontroller.Add(ctrlCtx.Ctx, ctrlCtx.Mgr, 1, ctrlCtx.Log)
+	return awsbuildcontroller.Add(ctrlCtx.Ctx, ctrlCtx.Mgr, 1, &ctrlCtx.Log)
 }
