@@ -20,15 +20,13 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/go-logr/zapr"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 
 	infrastructurev1alpha1 "github.com/forge-build/forge-provider-aws/pkg/api/v1alpha1"
-	buildv1 "github.com/forge-build/forge/api/v1alpha1"
+	buildv1 "github.com/forge-build/forge/pkg/api/v1alpha1"
 
 	"github.com/forge-build/forge-provider-aws/cmd/forge-provider-aws/app/options"
-	forgelog "github.com/forge-build/forge-provider-aws/pkg/log"
+	forgelog "github.com/forge-build/forge/pkg/log"
 
 	ctrlruntime "sigs.k8s.io/controller-runtime"
 	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -67,15 +65,17 @@ func NewControllerManagerCommand() *cobra.Command {
 
 func runControllerManager(opts *options.ControllerManagerRunOptions) error {
 	// Initialize logger
-	rawLog := forgelog.New(opts.Debug, opts.LogFormat)
-	log := rawLog.Sugar()
-	log = log.With("controller-name", controllerName)
-	ctrlruntimelog.SetLogger(zapr.NewLogger(rawLog.WithOptions(zap.AddCallerSkip(1))))
+	logRaw, err := forgelog.NewZapLogger(opts.LogLevel, opts.LogFormat)
+	if err != nil {
+		return nil
+	}
+	log := logRaw.WithName(controllerName)
+	ctrlruntimelog.SetLogger(log)
 
 	// Setting up kubernetes Configuration
 	cfg, err := ctrlruntime.GetConfig()
 	if err != nil {
-		log.Fatalw("Failed to get kubeconfig", zap.Error(err))
+		log.Error(err, "Failed to get kubeconfig")
 	}
 	electionName := controllerName
 	if opts.WorkerName != "" {
@@ -89,15 +89,15 @@ func runControllerManager(opts *options.ControllerManagerRunOptions) error {
 		LeaderElectionID: electionName,
 	})
 	if err != nil {
-		log.Fatalw("Failed to create the manager", zap.Error(err))
+		log.Error(err, "Failed to create the manager")
 	}
 
 	if err := infrastructurev1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
-		log.Fatalw("Failed to register scheme", zap.Stringer("api", infrastructurev1alpha1.GroupVersion), zap.Error(err))
+		log.Error(err, "Failed to register scheme")
 	}
 
 	if err := buildv1.AddToScheme(mgr.GetScheme()); err != nil {
-		log.Fatalw("Failed to register scheme", zap.Stringer("api", buildv1.GroupVersion), zap.Error(err))
+		log.Error(err, "Failed to register scheme")
 	}
 	rootCtx := signals.SetupSignalHandler()
 
@@ -105,15 +105,15 @@ func runControllerManager(opts *options.ControllerManagerRunOptions) error {
 		Ctx:        rootCtx,
 		RunOptions: opts,
 		Mgr:        mgr,
-		Log:        log,
+		Log:        logRaw,
 	}
 	if err := createAllControllers(ctrlCtx); err != nil {
-		log.Fatalw("Could not create all controllers", zap.Error(err))
+		log.Error(err, "Could not create all controllers")
 	}
 
 	log.Info(fmt.Sprintf("Starting the %s Controller Manager", controllerName))
 	if err := mgr.Start(rootCtx); err != nil {
-		log.Fatalw("problem running manager", zap.Error(err))
+		log.Error(err, "problem running manager")
 	}
 	return nil
 }

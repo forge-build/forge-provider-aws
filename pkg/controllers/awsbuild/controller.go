@@ -22,8 +22,6 @@ import (
 	"strings"
 	"time"
 
-	"go.uber.org/zap"
-
 	"github.com/forge-build/forge-provider-aws/pkg/cloud"
 	"github.com/forge-build/forge-provider-aws/pkg/cloud/scope"
 	awserrors "github.com/forge-build/forge-provider-aws/pkg/cloud/services/errors"
@@ -32,15 +30,15 @@ import (
 	"github.com/forge-build/forge-provider-aws/pkg/cloud/services/networks"
 	"github.com/forge-build/forge-provider-aws/pkg/cloud/services/securitygroup"
 	"github.com/forge-build/forge-provider-aws/pkg/cloud/services/subnet"
-	buildv1 "github.com/forge-build/forge/api/v1alpha1"
+	buildv1 "github.com/forge-build/forge/pkg/api/v1alpha1"
 	"github.com/forge-build/forge/pkg/ssh"
-	forgeutil "github.com/forge-build/forge/util"
+	forgeutil "github.com/forge-build/forge/pkg/util"
+	"github.com/forge-build/forge/pkg/util/predicates"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/forge-build/forge/util/annotations"
-	"github.com/forge-build/forge/util/predicates"
+	"github.com/forge-build/forge/pkg/kubernetes"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -50,12 +48,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	infrav1 "github.com/forge-build/forge-provider-aws/pkg/api/v1alpha1"
 )
 
 const ControllerName = "awsbuild-controller"
+
+var rawLog *logr.Logger
 
 // AWSBuildReconciler reconciles a AWSBuild object
 type AWSBuildReconciler struct {
@@ -65,11 +64,12 @@ type AWSBuildReconciler struct {
 }
 
 // Add creates a new AWSBuild controller and adds it to the Manager.
-func Add(ctx context.Context, mgr ctrl.Manager, numWorkers int, log *zap.SugaredLogger) error {
+func Add(ctx context.Context, mgr ctrl.Manager, numWorkers int, log *logr.Logger) error {
 	// Create the reconciler instance
 	reconciler := &AWSBuildReconciler{
 		Client:   mgr.GetClient(),
 		recorder: mgr.GetEventRecorderFor(ControllerName),
+		log:      log.WithName(ControllerName),
 	}
 
 	// Set up the controller with custom predicates
@@ -85,6 +85,7 @@ func Add(ctx context.Context, mgr ctrl.Manager, numWorkers int, log *zap.Sugared
 			builder.WithPredicates(predicates.BuildUnpaused(ctrl.LoggerFrom(ctx)))).
 		Build(reconciler)
 
+	rawLog = log
 	return err
 }
 
@@ -94,8 +95,7 @@ func Add(ctx context.Context, mgr ctrl.Manager, numWorkers int, log *zap.Sugared
 // +kubebuilder:rbac:groups=forge.build,resources=builds,verbs=get;list;watch;patch
 
 func (r *AWSBuildReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
-	r.log = log.FromContext(ctx)
-	r.log.Info("Reconciling")
+	r.log.V(1).Info("Reconciling")
 	awsBuild := &infrav1.AWSBuild{}
 	err := r.Get(ctx, req.NamespacedName, awsBuild)
 	if err != nil {
@@ -119,7 +119,7 @@ func (r *AWSBuildReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_
 		return ctrl.Result{}, nil
 	}
 
-	if annotations.IsPaused(build, awsBuild) {
+	if kubernetes.IsPaused(build, awsBuild) {
 		r.log.Info("awsBuild of linked Build is marked as paused. Won't reconcile")
 		return ctrl.Result{}, nil
 	}
@@ -128,6 +128,7 @@ func (r *AWSBuildReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_
 		Client:   r.Client,
 		Build:    build,
 		AWSBuild: awsBuild,
+		Log:      rawLog,
 	})
 	if err != nil {
 		return ctrl.Result{}, errors.Errorf("failed to create scope: %+v", err)
@@ -155,7 +156,7 @@ func (r *AWSBuildReconciler) recordEvent(awsBuild *infrav1.AWSBuild, eventType, 
 }
 
 func (r *AWSBuildReconciler) reconcileDelete(ctx context.Context, buildScope *scope.AWSBuildScope) (ctrl.Result, error) {
-	r.log.Info("Reconciling Delete AWSBuild")
+	r.log.V(1).Info("Reconciling Delete AWSBuild")
 
 	reconcilers := []cloud.Reconciler{
 		instances.New(buildScope),
@@ -167,8 +168,8 @@ func (r *AWSBuildReconciler) reconcileDelete(ctx context.Context, buildScope *sc
 	for _, reconcile := range reconcilers {
 		if err := reconcile.Delete(ctx); err != nil {
 			if awserrors.IsInstanceNotTerminated(err) {
-				r.log.Info("Instance is not terminated yet")
-				return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+				r.log.V(1).Info("Instance is not terminated yet")
+				return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 			}
 			r.log.Error(err, "Reconcile error")
 			r.recordEvent(buildScope.AWSBuild, "Warning", "Cleaning Up Failed", fmt.Sprintf("Reconcile error - %v ", err))
@@ -224,7 +225,7 @@ func (r *AWSBuildReconciler) reconcileNormal(ctx context.Context, buildScope *sc
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
 
-	r.recordEvent(buildScope.AWSBuild, "Normal", "InstanceCreated", fmt.Sprintf("Machine is created, Got an instance ID - %s ", *buildScope.GetInstanceID()))
+	r.recordEvent(buildScope.AWSBuild, "Normal", "InstanceCreated", fmt.Sprintf("Machine is created, Got an instance ID  %s ", *buildScope.GetInstanceID()))
 
 	buildScope.SetMachineReady()
 

@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	buildv1 "github.com/forge-build/forge/api/v1alpha1"
+	buildv1 "github.com/forge-build/forge/pkg/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -102,7 +102,7 @@ type AWSBuildSpec struct {
 
 	// InstanceID is the unique identifier as specified by the cloud provider.
 	// +optional
-	InstanceID *string `json:"InstanceID,omitempty"`
+	InstanceID *string `json:"instanceID,omitempty"`
 
 	// CredentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
 	// supplied then the credentials of the controller will be used.
@@ -152,7 +152,7 @@ type AWSBuildStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=awsbuilds,scope=Namespaced,categories=forge;aws,singular=awsbuild
 // +kubebuilder:printcolumn:name="Build",type="string",JSONPath=".metadata.labels['forge\\.build/build-name']",description="Build"
-// +kubebuilder:printcolumn:name="Instance ID",type="string",JSONPath=".status.instanceID",description="Instance ID"
+// +kubebuilder:printcolumn:name="Instance ID",type="string",JSONPath=".spec.instanceID",description="Instance ID"
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="Build is ready"
 
 // AWSBuild is the Schema for the awsbuilds API.

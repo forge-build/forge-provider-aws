@@ -21,7 +21,10 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/forge-build/forge-provider-aws/pkg/cloud"
+	"github.com/go-logr/logr"
 )
+
+const ServiceName = "networks-reconciler"
 
 type vpcsInterface interface {
 	FindVPCByIDOrName(vpcID, vpcName *string) (*ec2.Vpc, error)
@@ -44,6 +47,7 @@ type Scope interface {
 type Service struct {
 	scope  Scope
 	Client vpcsInterface
+	Log    logr.Logger
 }
 
 var _ cloud.Reconciler = &Service{}
@@ -53,5 +57,6 @@ func New(scope Scope) *Service {
 	return &Service{
 		scope:  scope,
 		Client: scope.Cloud(),
+		Log:    scope.Log(ServiceName),
 	}
 }

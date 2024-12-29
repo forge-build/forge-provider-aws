@@ -22,18 +22,16 @@ import (
 	"github.com/forge-build/forge-provider-aws/pkg/api/v1alpha1"
 	awserrors "github.com/forge-build/forge-provider-aws/pkg/cloud/services/errors"
 	"github.com/pkg/errors"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // Reconcile ensures the Security Group is present and correctly configured.
 func (s *Service) Reconcile(ctx context.Context) error {
-	log := log.FromContext(ctx)
-	log.Info("Reconciling Security Group resources")
+	s.Log.V(1).Info("Reconciling Security Group resources")
 
 	// Check if the Security Group ID is defined by the user
 	sgID := s.scope.SecurityGroupID()
 	if sgID != nil {
-		log.Info("Using existing Security Group", "SecurityGroupID", *sgID)
+		s.Log.Info("Using existing Security Group", "SecurityGroupID", *sgID)
 		return nil
 	}
 
@@ -43,14 +41,14 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		return errors.New("VPC ID is required to create a Security Group")
 	}
 
-	log.Info("Creating Security Group", "VPCID", vpcID)
+	s.Log.Info("Creating Security Group", "VPCID", vpcID)
 	sg, err := s.Client.CreateSecurityGroup(vpcID, s.scope.SecurityGroupName())
 	if err != nil {
 		return errors.Wrap(err, "failed to create Security Group")
 	}
 
 	// Add SSH ingress rule
-	log.Info("Adding SSH ingress rule to Security Group", "SecurityGroupID", sgID)
+	s.Log.V(1).Info("Adding SSH ingress rule to Security Group", "SecurityGroupID", sgID)
 	err = s.Client.AuthorizeSecurityGroupIngress(*sg.GroupId)
 	if err != nil {
 		return errors.Wrap(err, "failed to add SSH ingress rule to Security Group")
@@ -58,14 +56,13 @@ func (s *Service) Reconcile(ctx context.Context) error {
 
 	// Update the scope with the created Security Group ID
 	s.scope.SetSecurityGroupID(sg.GroupId)
-	log.Info("Successfully reconciled Security Group", "SecurityGroupID", *sg.GroupId)
+	s.Log.Info("Successfully reconciled Security Group", "SecurityGroupID", *sg.GroupId)
 	return nil
 }
 
 // Delete ensures the Security Group is deleted if managed by the system.
 func (s *Service) Delete(ctx context.Context) error {
-	log := log.FromContext(ctx)
-	log.Info("Deleting Security Group resources")
+	s.Log.V(1).Info("Deleting Security Group resources")
 
 	if *s.scope.InstanceState() != v1alpha1.InstanceStatusTerminated {
 		return awserrors.ErrInstanceNotTerminated
@@ -73,29 +70,29 @@ func (s *Service) Delete(ctx context.Context) error {
 
 	sgID := s.scope.SecurityGroupID()
 	if sgID == nil {
-		log.Info("No Security Group to delete")
+		s.Log.Info("No Security Group to delete")
 		return nil
 	}
 
 	// Check if the Security Group is managed by the controller
-	log.Info("Checking if Security Group is managed by Forge", "SecurityGroupID", sgID)
+	s.Log.V(1).Info("Checking if Security Group is managed by Forge", "SecurityGroupID", sgID)
 	isManaged, err := s.Client.IsManagedSecurityGroup(*sgID)
 	if err != nil {
 		return errors.Wrap(err, "failed to check if Security Group is managed")
 	}
 
 	if !isManaged {
-		log.Info("Security Group is not managed by Forge, skipping deletion", "SecurityGroupID", *sgID)
+		s.Log.Info("Security Group is not managed by Forge, skipping deletion", "SecurityGroupID", *sgID)
 		return nil
 	}
 
 	// Delete the Security Group
-	log.Info("Deleting Security Group", "SecurityGroupID", *sgID)
+	s.Log.Info("Deleting Security Group", "SecurityGroupID", *sgID)
 	err = s.Client.DeleteSecurityGroup(sgID)
 	if err != nil {
 		return err
 	}
 
-	log.Info("Successfully deleted Security Group", "SecurityGroupID", *sgID)
+	s.Log.Info("Successfully deleted Security Group", "SecurityGroupID", *sgID)
 	return nil
 }

@@ -20,9 +20,8 @@ import (
 	"context"
 	"flag"
 
-	"go.uber.org/zap"
-
-	"github.com/forge-build/forge-provider-aws/pkg/log"
+	"github.com/forge-build/forge/pkg/log"
+	"github.com/go-logr/logr"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -31,7 +30,7 @@ type ControllerManagerRunOptions struct {
 	EnableLeaderElection bool
 	Port                 int
 	MetricsBindAddress   string
-	Debug                bool
+	LogLevel             log.LogLevel
 	LogFormat            log.Format
 	WorkerName           string
 }
@@ -40,12 +39,12 @@ type ControllerContext struct {
 	Ctx        context.Context
 	RunOptions *ControllerManagerRunOptions
 	Mgr        manager.Manager
-	Log        *zap.SugaredLogger
+	Log        logr.Logger
 }
 
 func (o *ControllerManagerRunOptions) AddFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&o.EnableLeaderElection, "leader-elect", false, "Enable leader election for controller manager.")
-	fs.BoolVar(&o.Debug, "log-debug", false, "Enables more verbose logging")
+	fs.Var(&o.LogLevel, "log-level", "Enables more verbose logging")
 	fs.IntVar(&o.Port, "port", 9443, "The port the controller-manager's webhook server binds to.")
 	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	fs.StringVar(&o.WorkerName, "worker-name", "", "The name of the worker that will only processes resources with label=worker-name.")

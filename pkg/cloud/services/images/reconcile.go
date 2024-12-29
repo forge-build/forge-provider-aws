@@ -20,17 +20,15 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // Reconcile ensures that a disk image (AMI) is created from an EC2 instance.
 func (s *Service) Reconcile(ctx context.Context) error {
-	logger := log.FromContext(ctx)
-	logger.Info("Reconciling image creation")
+	s.Log.V(1).Info("Reconciling image creation")
 
 	// Ensure provisioner is ready
 	if !s.scope.IsProvisionerReady() || s.scope.IsReady() {
-		logger.Info("Not ready for exporting the image")
+		s.Log.V(1).Info("Not ready for exporting the image")
 		return nil
 	}
 
@@ -40,9 +38,9 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 
 	amiName := s.scope.Name()
-	logger.Info("Ensuring no existing AMI conflicts", "imageName", amiName)
 
 	// Ensure no existing AMI conflicts
+	s.Log.V(1).Info("Ensuring no existing AMI conflicts", "imageName", amiName)
 	if err := s.Client.EnsureAMIDoesNotExist(ctx, amiName, s.scope.CreationDate()); err != nil {
 		return err
 	}
@@ -55,18 +53,18 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	switch amiState {
 	case "available":
 		s.scope.SetArtifactRef(amiID)
-		logger.Info("AMI is already available", "AMI ID", amiID)
+		s.Log.Info("AMI is already available", "AMI ID", amiID)
 	case "pending":
-		logger.Info("AMI is still being created, waiting for readiness", "AMI ID", amiID)
+		s.Log.Info("AMI is still being created, waiting for readiness", "AMI ID", amiID)
 	default:
-		logger.Info("Creating AMI object...", amiName)
+		s.Log.Info("Creating AMI object...", amiName)
 		err := s.Client.CreateAMI(ctx, *instanceID, amiName)
 		if err != nil {
 			return err
 		}
 	}
 
-	logger.Info("AMI reconciliation successful", "AMI ID", amiID)
+	s.Log.Info("AMI reconciliation successful", "AMI ID", amiID)
 	return nil
 }
 
